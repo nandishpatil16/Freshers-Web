@@ -5,13 +5,16 @@ let attendees = [];
 let soundEnabled = true;
 let audioCtx = null;
 let activeQrUrl = '';
+let knownAttendeeIds = new Set();
+let isInitialLoad = true;
+let pollInterval = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   if (window.lucide) {
     window.lucide.createIcons();
   }
 
-  // Init Socket.io
+  // Init Socket.io or smart cloud polling
   initSocket();
 
   // Load initial attendees
@@ -98,62 +101,117 @@ function toggleAudioAlerts() {
   if (window.lucide) window.lucide.createIcons();
 }
 
-// Initialize Socket.io
+// Start Smart Polling fallback (essential for Vercel/serverless where long-lived WebSockets are disabled)
+function startPollingFallback() {
+  if (pollInterval) return;
+  const statusEl = document.getElementById('connection-status');
+  if (statusEl) statusEl.textContent = 'Live Cloud Sync';
+
+  pollInterval = setInterval(async () => {
+    try {
+      const res = await fetch('/api/attendees');
+      if (!res.ok) return;
+      const data = await res.json();
+      const latestList = data.attendees || [];
+
+      // Detect any new fresher
+      let newlyAdded = [];
+      latestList.forEach(item => {
+        if (!knownAttendeeIds.has(item.id)) {
+          knownAttendeeIds.add(item.id);
+          if (!isInitialLoad) {
+            newlyAdded.push(item);
+          }
+        }
+      });
+
+      if (newlyAdded.length > 0) {
+        // Trigger sound and toast for newest fresher
+        playNotificationChime();
+        newlyAdded.forEach(f => showLiveToast(f));
+        attendees = latestList;
+        renderAttendeesTable(attendees);
+
+        // Update stats
+        const statsRes = await fetch('/api/stats');
+        if (statsRes.ok) {
+          const stats = await statsRes.json();
+          renderStats(stats);
+        }
+      }
+    } catch (e) {
+      // transient network error
+    }
+  }, 2500);
+}
+
+// Initialize Socket.io with smart fallback
 function initSocket() {
-  if (typeof io === 'undefined') {
-    console.error('Socket.io client not loaded');
-    return;
-  }
-
-  socket = io();
-
   const statusEl = document.getElementById('connection-status');
 
-  socket.on('connect', () => {
-    if (statusEl) statusEl.textContent = 'Live Connected';
-  });
+  try {
+    if (typeof io !== 'undefined') {
+      socket = io({ reconnectionAttempts: 2, timeout: 2500 });
 
-  socket.on('disconnect', () => {
-    if (statusEl) statusEl.textContent = 'Disconnected';
-  });
+      socket.on('connect', () => {
+        if (statusEl) statusEl.textContent = 'Live Connected';
+      });
 
-  // Initial Stats from server
-  socket.on('initial_stats', (stats) => {
-    renderStats(stats);
-  });
+      socket.on('connect_error', () => {
+        startPollingFallback();
+      });
 
-  // REAL TIME NOTIFICATION EVENT: Student submitted!
-  socket.on('new_fresher', (data) => {
-    const fresher = data.fresher;
-    
-    // Play celebratory sound chime
-    playNotificationChime();
+      socket.on('disconnect', () => {
+        startPollingFallback();
+      });
 
-    // Trigger toast notification
-    showLiveToast(fresher);
+      // Initial Stats from server
+      socket.on('initial_stats', (stats) => {
+        renderStats(stats);
+      });
 
-    // Update roster list
-    const existingIdx = attendees.findIndex(a => a.id === fresher.id || (a.usn && a.usn === fresher.usn));
-    if (existingIdx !== -1) {
-      attendees[existingIdx] = fresher;
+      // REAL TIME NOTIFICATION EVENT: Student submitted!
+      socket.on('new_fresher', (data) => {
+        const fresher = data.fresher;
+        knownAttendeeIds.add(fresher.id);
+        
+        playNotificationChime();
+        showLiveToast(fresher);
+
+        const existingIdx = attendees.findIndex(a => a.id === fresher.id || (a.usn && a.usn === fresher.usn));
+        if (existingIdx !== -1) {
+          attendees[existingIdx] = fresher;
+        } else {
+          attendees.unshift(fresher);
+        }
+        renderAttendeesTable(attendees);
+
+        if (data.stats) {
+          renderStats(data.stats);
+        }
+      });
+
+      socket.on('attendee_deleted', (data) => {
+        knownAttendeeIds.delete(data.id);
+        attendees = attendees.filter(a => a.id !== data.id);
+        renderAttendeesTable(attendees);
+        if (data.stats) {
+          renderStats(data.stats);
+        }
+      });
     } else {
-      attendees.unshift(fresher);
+      startPollingFallback();
     }
-    renderAttendeesTable(attendees);
+  } catch (err) {
+    startPollingFallback();
+  }
 
-    // Update KPIs & Distribution
-    if (data.stats) {
-      renderStats(data.stats);
+  // Backup timer in case socket hangs in serverless
+  setTimeout(() => {
+    if (!socket || !socket.connected) {
+      startPollingFallback();
     }
-  });
-
-  socket.on('attendee_deleted', (data) => {
-    attendees = attendees.filter(a => a.id !== data.id);
-    renderAttendeesTable(attendees);
-    if (data.stats) {
-      renderStats(data.stats);
-    }
-  });
+  }, 3000);
 }
 
 // Show animated toast in top-right
@@ -207,6 +265,8 @@ async function loadAttendees() {
     const res = await fetch('/api/attendees');
     const data = await res.json();
     attendees = data.attendees || [];
+    attendees.forEach(a => knownAttendeeIds.add(a.id));
+    isInitialLoad = false;
     renderAttendeesTable(attendees);
 
     // Also fetch stats
@@ -215,6 +275,7 @@ async function loadAttendees() {
     renderStats(statsData);
   } catch (err) {
     console.error('Failed to load attendees:', err);
+    isInitialLoad = false;
   }
 }
 

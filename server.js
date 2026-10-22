@@ -90,12 +90,16 @@ app.post('/api/register', async (req, res) => {
 
     const result = db.addFresher(fresherData);
 
-    // Broadcast in real-time to all connected admin panels!
-    io.emit('new_fresher', {
-      fresher: result.record,
-      isUpdate: result.isUpdate,
-      stats: db.getStats()
-    });
+    // Broadcast in real-time to all connected admin panels (if WebSocket is active)
+    try {
+      io.emit('new_fresher', {
+        fresher: result.record,
+        isUpdate: result.isUpdate,
+        stats: db.getStats()
+      });
+    } catch (socketErr) {
+      // In serverless environments, WebSocket is replaced by smart polling
+    }
 
     return res.status(201).json({
       success: true,
@@ -123,7 +127,9 @@ app.get('/api/stats', (req, res) => {
 app.delete('/api/attendees/:id', (req, res) => {
   const success = db.deleteFresher(req.params.id);
   if (success) {
-    io.emit('attendee_deleted', { id: req.params.id, stats: db.getStats() });
+    try {
+      io.emit('attendee_deleted', { id: req.params.id, stats: db.getStats() });
+    } catch (e) {}
     res.json({ success: true });
   } else {
     res.status(404).json({ error: 'Attendee not found' });
@@ -188,16 +194,25 @@ app.get('/admin', (req, res) => {
   res.sendFile('admin.html', { root: path.join(__dirname, 'public') });
 });
 
-// Start Server
-server.listen(PORT, '0.0.0.0', () => {
-  const localIps = getLocalIpAddresses();
-  console.log(`\n======================================================`);
-  console.log(`🎉 FRESHERS SURPRISE PORTAL & ADMIN PANEL READY!`);
-  console.log(`======================================================`);
-  console.log(`👉 Local URL:        http://localhost:${PORT}`);
-  if (localIps.length > 0) {
-    console.log(`👉 Mobile QR URL:    http://${localIps[0]}:${PORT} (For phones on same Wi-Fi)`);
-  }
-  console.log(`🛡️  Admin Dashboard:  http://localhost:${PORT}/admin`);
-  console.log(`======================================================\n`);
+// Route for Fresher Home
+app.get('/', (req, res) => {
+  res.sendFile('index.html', { root: path.join(__dirname, 'public') });
 });
+
+// Start Server locally if not running as serverless function
+if (!process.env.VERCEL && require.main === module) {
+  server.listen(PORT, '0.0.0.0', () => {
+    const localIps = getLocalIpAddresses();
+    console.log(`\n======================================================`);
+    console.log(`🎉 FRESHERS SURPRISE PORTAL & ADMIN PANEL READY!`);
+    console.log(`======================================================`);
+    console.log(`👉 Local URL:        http://localhost:${PORT}`);
+    if (localIps.length > 0) {
+      console.log(`👉 Mobile QR URL:    http://${localIps[0]}:${PORT} (For phones on same Wi-Fi)`);
+    }
+    console.log(`🛡️  Admin Dashboard:  http://localhost:${PORT}/admin`);
+    console.log(`======================================================\n`);
+  });
+}
+
+module.exports = app;
