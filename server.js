@@ -1,21 +1,34 @@
 const express = require('express');
 const http = require('http');
-const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const os = require('os');
 const QRCode = require('qrcode');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const db = require('./database');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+
+// Initialize Socket.io only when running as a persistent server (not on Vercel Serverless)
+let io = null;
+if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  try {
+    const { Server } = require('socket.io');
+    io = new Server(server, {
+      cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+      }
+    });
+
+    io.on('connection', (socket) => {
+      socket.emit('initial_stats', db.getStats());
+    });
+  } catch (err) {
+    console.warn('Socket.io skipped:', err.message);
   }
-});
+}
 
 const PORT = process.env.PORT || 3000;
 
@@ -31,7 +44,6 @@ function getLocalIpAddresses() {
   const addresses = [];
   for (const name of Object.keys(interfaces)) {
     for (const net of interfaces[name]) {
-      // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
       if (net.family === 'IPv4' && !net.internal) {
         addresses.push(net.address);
       }
@@ -39,16 +51,6 @@ function getLocalIpAddresses() {
   }
   return addresses;
 }
-
-// Socket.io connection for live admin notifications
-io.on('connection', (socket) => {
-  // Send current stats on connect
-  socket.emit('initial_stats', db.getStats());
-
-  socket.on('disconnect', () => {
-    // client disconnected
-  });
-});
 
 // API: Register Fresher
 app.post('/api/register', async (req, res) => {
@@ -70,7 +72,6 @@ app.post('/api/register', async (req, res) => {
     if (customHobby && customHobby.trim()) {
       interestList.push(customHobby.trim());
     }
-    // Remove duplicates
     interestList = Array.from(new Set(interestList.map(i => i.trim()))).filter(Boolean);
 
     // Create unique VIP pass code
@@ -78,7 +79,7 @@ app.post('/api/register', async (req, res) => {
     const ticketCode = `FEST-2026-${cleanedUsn.slice(-4) || 'VIP'}-${randomHex}`;
 
     const fresherData = {
-      id: uuidv4(),
+      id: crypto.randomUUID ? crypto.randomUUID() : ('id-' + Date.now() + '-' + Math.random().toString(36).substring(2)),
       ticketCode,
       name: cleanedName,
       usn: cleanedUsn,
@@ -91,14 +92,14 @@ app.post('/api/register', async (req, res) => {
     const result = db.addFresher(fresherData);
 
     // Broadcast in real-time to all connected admin panels (if WebSocket is active)
-    try {
-      io.emit('new_fresher', {
-        fresher: result.record,
-        isUpdate: result.isUpdate,
-        stats: db.getStats()
-      });
-    } catch (socketErr) {
-      // In serverless environments, WebSocket is replaced by smart polling
+    if (io) {
+      try {
+        io.emit('new_fresher', {
+          fresher: result.record,
+          isUpdate: result.isUpdate,
+          stats: db.getStats()
+        });
+      } catch (socketErr) {}
     }
 
     return res.status(201).json({
@@ -127,9 +128,11 @@ app.get('/api/stats', (req, res) => {
 app.delete('/api/attendees/:id', (req, res) => {
   const success = db.deleteFresher(req.params.id);
   if (success) {
-    try {
-      io.emit('attendee_deleted', { id: req.params.id, stats: db.getStats() });
-    } catch (e) {}
+    if (io) {
+      try {
+        io.emit('attendee_deleted', { id: req.params.id, stats: db.getStats() });
+      } catch (e) {}
+    }
     res.json({ success: true });
   } else {
     res.status(404).json({ error: 'Attendee not found' });
@@ -199,7 +202,7 @@ app.get('/', (req, res) => {
   res.sendFile('index.html', { root: path.join(__dirname, 'public') });
 });
 
-// Start Server locally if not running as serverless function
+// Start Server locally if not running on Vercel
 if (!process.env.VERCEL && require.main === module) {
   server.listen(PORT, '0.0.0.0', () => {
     const localIps = getLocalIpAddresses();
