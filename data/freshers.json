@@ -1,0 +1,43 @@
+[
+  {
+    "id": "f8dfc2a6-b203-438d-b0fc-7d2c62ce1feb",
+    "ticketCode": "FEST-2026-400-27TE",
+    "name": "Abhi",
+    "usn": "400",
+    "branch": "Electronics & Communication",
+    "interests": [
+      "Coding & Tech",
+      "sutta"
+    ],
+    "message": "",
+    "createdAt": "2026-10-22T10:23:30.911Z"
+  },
+  {
+    "id": "dd8b722f-a72b-402b-a10f-a8e6c7532957",
+    "ticketCode": "FEST-2026-S045-PWXD",
+    "name": "Priya Nair",
+    "usn": "1MS24IS045",
+    "branch": "Information Science & Engineering",
+    "interests": [
+      "Dancing",
+      "Photography & Video",
+      "Singing"
+    ],
+    "message": "Looking for dance team auditions!",
+    "createdAt": "2026-10-22T10:00:52.381Z"
+  },
+  {
+    "id": "36616f6e-c563-42c9-90af-e67da1b565ac",
+    "ticketCode": "FEST-2026-S001-6NTM",
+    "name": "Aarav Sharma",
+    "usn": "1MS24CS001",
+    "branch": "Computer Science & Engineering",
+    "interests": [
+      "Singing",
+      "Coding / Tech",
+      "Guitar Solo"
+    ],
+    "message": "Super excited for college life!",
+    "createdAt": "2026-10-22T10:00:20.646Z"
+  }
+]

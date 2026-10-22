@@ -1,0 +1,226 @@
+/* Custom Styles for Freshers Surprise Web */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+
+:root {
+  --bg-deep: #080b12;
+  --card-bg: #111726;
+  --card-border: #1e293b;
+  --gold-primary: #f59e0b;
+  --gold-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+  --gold-foil: linear-gradient(120deg, #fce99f 0%, #d4a34b 40%, #f7df8b 60%, #a8721c 100%);
+  --accent-purple: #8b5cf6;
+}
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background-color: var(--bg-deep);
+  color: #f8fafc;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+.font-mono-num {
+  font-family: 'Space Grotesk', monospace;
+}
+
+/* Elegant subtle mesh backdrop */
+.ambient-glow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: 
+    radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(245, 158, 11, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.05) 0%, transparent 60%);
+}
+
+/* Step transition animations */
+.step-container {
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.step-hidden {
+  display: none !important;
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+.step-active {
+  display: block;
+  animation: slideFadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Selectable Hobby Chip Cards */
+.hobby-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid #1e293b;
+  background: #111726;
+  cursor: pointer;
+  user-select: none;
+}
+
+.hobby-card:hover {
+  border-color: #4338ca;
+  background: #151d30;
+  transform: translateY(-2px);
+}
+
+.hobby-card.selected {
+  border-color: #f59e0b;
+  background: #192036;
+  box-shadow: 0 0 0 1px #f59e0b, 0 8px 20px -4px rgba(245, 158, 11, 0.25);
+  transform: translateY(-2px);
+}
+
+.hobby-card.selected .check-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.hobby-card .check-icon {
+  opacity: 0;
+  transform: scale(0.6);
+  transition: all 0.2s ease;
+}
+
+/* Golden foil text */
+.text-gold-foil {
+  background: var(--gold-foil);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Invitation Pass Styling */
+.invitation-pass {
+  background: #0f1626;
+  border: 2px solid #b4832c;
+  box-shadow: 
+    0 0 0 1px #3a2a0d,
+    0 25px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 35px rgba(217, 119, 6, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Perforated ticket stub line */
+.ticket-perforation {
+  position: relative;
+  height: 2px;
+  background-image: repeating-linear-gradient(to right, #334155, #334155 8px, transparent 8px, transparent 16px);
+}
+
+.ticket-notch-left, .ticket-notch-right {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background-color: var(--bg-deep);
+  border-radius: 50%;
+  top: -12px;
+  z-index: 10;
+}
+
+.ticket-notch-left {
+  left: -12px;
+  box-shadow: inset -2px 0 0 0 #b4832c;
+}
+
+.ticket-notch-right {
+  right: -12px;
+  box-shadow: inset 2px 0 0 0 #b4832c;
+}
+
+/* Luxury Card Inner Border */
+.pass-inner-border {
+  border: 1px solid rgba(212, 163, 75, 0.35);
+  position: relative;
+}
+
+/* Shiny Gold Badge */
+.gold-badge {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  border: 1px solid #fef08a;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4);
+}
+
+/* Pulse animation for primary CTA */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.8);
+  }
+}
+
+.btn-glow-gold {
+  animation: pulseGlow 2.5s infinite;
+}
+
+/* Card flip / shine animation */
+.card-shine-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-shine-effect::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 70%
+  );
+  transform: rotate(25deg);
+  animation: shineSweep 6s infinite;
+  pointer-events: none;
+}
+
+@keyframes shineSweep {
+  0% {
+    transform: translateX(-100%) rotate(25deg);
+  }
+  20%, 100% {
+    transform: translateX(100%) rotate(25deg);
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0b0f19;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
